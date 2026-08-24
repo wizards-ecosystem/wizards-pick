@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from pentest_llm import methodology
-from pentest_llm.methodology import (
+from wizards_pick import methodology
+from wizards_pick.methodology import (
     PHASE_GUIDES,
     format_methodology,
     matching_guides,
     tool_inventory,
 )
-from pentest_llm.models import Scope
+from wizards_pick.models import Scope
 
 
 def test_matching_guides_filters_by_allowed_categories(scope: Scope):

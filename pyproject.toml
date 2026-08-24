@@ -3,7 +3,7 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "penetration-llm"
+name = "wizards-pick"
 description = "Local-first terminal chat assistant for authorized security testing."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -14,6 +14,9 @@ dependencies = [
   "rich>=13.7.0",
 ]
 
+[project.urls]
+Repository = "https://github.com/wizards-ecosystem/wizards-pick"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
@@ -22,13 +25,13 @@ dev = [
 ]
 
 [project.scripts]
-penetration-llm = "pentest_llm.cli:main"
+wizards-pick = "wizards_pick.cli:main"
 
 [tool.hatch.version]
-path = "src/pentest_llm/__init__.py"
+path = "src/wizards_pick/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pentest_llm"]
+packages = ["src/wizards_pick"]
 
 [tool.ruff]
 line-length = 100
@@ -56,7 +59,7 @@ addopts = "-q"
 
 [tool.mypy]
 python_version = "3.11"
-packages = ["pentest_llm"]
+packages = ["wizards_pick"]
 mypy_path = "src"
 strict = false
 warn_unused_ignores = true

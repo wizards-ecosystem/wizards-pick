@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pentest_llm.context import (
+from wizards_pick.context import (
     budget_messages,
     estimate_tokens,
     truncate_to_tokens,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from pentest_llm.models import (
+from wizards_pick.models import (
     CommandProposal,
     CommandResult,
     ExecutionMode,

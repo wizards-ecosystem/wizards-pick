@@ -10,7 +10,7 @@
 # the commented rope block at the bottom to experiment with 64K.
 # NOTE: ollama resolves a relative FROM against the Modelfile's own directory
 # (scripts/), so this path is written relative to scripts/, not the repo root.
-FROM ../.penetration-llm/ollama/gguf/DeepHat-V1-7B.Q8_0.gguf
+FROM ../.wizards-pick/ollama/gguf/DeepHat-V1-7B.Q8_0.gguf
 
 # Context + full GPU offload: 7B Q8_0 (~8.1 GB) + 32K f16 KV (~1.8 GB) fits the
 # 16 GB GPU with headroom, so force every layer onto the GPU.

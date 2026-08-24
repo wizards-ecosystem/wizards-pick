@@ -4,9 +4,9 @@ import pytest
 from rich.console import Console
 from rich.errors import MarkupError
 
-from pentest_llm import render
-from pentest_llm.methodology import ToolStatus
-from pentest_llm.models import (
+from wizards_pick import render
+from wizards_pick.methodology import ToolStatus
+from wizards_pick.models import (
     CommandProposal,
     ExecutionMode,
     Finding,

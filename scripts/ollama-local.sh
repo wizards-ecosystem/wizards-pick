@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DATA_DIR="$ROOT/.penetration-llm"
+DATA_DIR="$ROOT/.wizards-pick"
 BIN_DIR="$DATA_DIR/bin"
 HOME_DIR="$DATA_DIR/home"
 RUNTIME_DIR="$DATA_DIR/runtime"
@@ -55,9 +55,9 @@ usage() {
 Usage: scripts/ollama-local.sh <command>
 
 Commands:
-  install     Download Ollama into .penetration-llm/runtime and link it locally
+  install     Download Ollama into .wizards-pick/runtime and link it locally
   serve       Start project-local Ollama on $BASE_URL
-  fetch-gguf  Download the DeepHat Q8_0 GGUF into .penetration-llm/ollama/gguf
+  fetch-gguf  Download the DeepHat Q8_0 GGUF into .wizards-pick/ollama/gguf
   create      Build the '$MODEL' tag from scripts/DeepHat.Modelfile
   build       fetch-gguf + create (full self-contained model build)
   pull        Alias for build
@@ -119,9 +119,9 @@ install_local() {
   extract_archive "$archive" "$RUNTIME_DIR"
 
   if [[ -x "$RUNTIME_DIR/bin/ollama" ]]; then
-    ln -sf "$RUNTIME_DIR/bin/ollama" "$BIN_DIR/ollama"
+    ln -sfn ../runtime/bin/ollama "$BIN_DIR/ollama"
   elif [[ -x "$RUNTIME_DIR/ollama" ]]; then
-    ln -sf "$RUNTIME_DIR/ollama" "$BIN_DIR/ollama"
+    ln -sfn ../runtime/ollama "$BIN_DIR/ollama"
   else
     echo "Could not find ollama after extracting $archive" >&2
     exit 1

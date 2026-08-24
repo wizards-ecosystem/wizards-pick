@@ -58,7 +58,10 @@ HELP_TEXT = """Available commands:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Local-first terminal pentest chat assistant.")
+    parser = argparse.ArgumentParser(
+        prog="wizards-pick",
+        description="Local-first terminal assistant for authorized security testing.",
+    )
     parser.add_argument("--session", help="Resume a specific session id.")
     parser.add_argument("--new", action="store_true", help="Create a new session.")
     args = parser.parse_args(argv)
@@ -81,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def create_session_wizard(storage: Storage) -> Session:
-    console.print(Panel.fit("Pentest chat session", border_style="cyan"))
+    console.print(Panel.fit("wizards-pick security session", border_style="cyan"))
     name = Prompt.ask("Session name", default="Pentest session")
     mode = _prompt_mode(default=ExecutionMode.MANUAL)
 

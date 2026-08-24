@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pentest_llm.models import (
+from wizards_pick.models import (
     CommandProposal,
     CommandResult,
     ExecutionMode,
@@ -9,7 +9,7 @@ from pentest_llm.models import (
     Scope,
     Session,
 )
-from pentest_llm.storage import Storage
+from wizards_pick.storage import Storage
 
 
 def test_create_and_get_session(storage: Storage, session: Session):

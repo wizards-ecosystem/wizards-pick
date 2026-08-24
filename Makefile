@@ -14,7 +14,7 @@ dev: ## Install the app plus dev tooling (pytest, ruff, mypy)
 	$(PYTHON) -m pip install -e ".[dev]"
 
 run: ## Launch the terminal assistant
-	penetration-llm
+	wizards-pick
 
 check: lint format-check typecheck test ## Run every quality gate
 
@@ -39,7 +39,7 @@ model-serve: ## Start the project-local Ollama server (loopback)
 model-build: ## Fetch the GGUF and build the local `deephat` model
 	scripts/ollama-local.sh build
 
-clean: ## Remove caches and build artifacts (keeps .penetration-llm data)
+clean: ## Remove caches and build artifacts (keeps .wizards-pick data)
 	rm -rf build dist ./*.egg-info src/*.egg-info \
 		.pytest_cache .ruff_cache .mypy_cache
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +

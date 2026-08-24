@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from pentest_llm import llm
-from pentest_llm.llm import (
+from wizards_pick import llm
+from wizards_pick.llm import (
     SYSTEM_PROMPT,
     LLMClient,
     build_messages,
@@ -12,8 +12,8 @@ from pentest_llm.llm import (
     extract_json_payloads,
     scope_context,
 )
-from pentest_llm.models import Scope
-from pentest_llm.paths import RESPONSE_RESERVE_TOKENS
+from wizards_pick.models import Scope
+from wizards_pick.paths import RESPONSE_RESERVE_TOKENS
 
 
 class _FakeResponse:

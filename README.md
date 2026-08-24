@@ -1,8 +1,8 @@
 <div align="center">
 
-# penetration-llm
+# wizards-pick
 
-**A local-first terminal pentest assistant. An offensive-security model runs on your machine; nothing leaves it.**
+**Your local-first lockpick for authorized security testing. An offensive-security model runs on your machine; nothing leaves it.**
 
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Inference](https://img.shields.io/badge/inference-100%25%20local-success)](#how-it-works)
@@ -32,7 +32,7 @@ test from.
 
 ```mermaid
 flowchart LR
-    U["you"] --> C["penetration-llm<br/><i>terminal chat</i>"]
+    U["you"] --> C["wizards-pick<br/><i>terminal chat</i>"]
     C -->|"127.0.0.1:11435"| O["Ollama<br/><i>project-local</i>"]
     O --> M["DeepHat-V1-7B<br/><i>offensive-security fine-tune</i>"]
     C -->|"propose"| X["command"]
@@ -59,7 +59,7 @@ trained ceiling; the Modelfile documents an optional rope-scaling block to exper
 Every request is **budgeted to that window** so long engagements never overflow it: the system
 framing and your latest turn are always kept, recent history fills the remaining space, and a
 single oversized message (a huge scan dump) is trimmed head-and-tail instead of silently pushing
-the conversation out of context. Tune it with `PENTEST_LLM_CONTEXT_TOKENS` if you rebuild the model
+the conversation out of context. Tune it with `WIZARDS_PICK_CONTEXT_TOKENS` if you rebuild the model
 with a different `num_ctx`.
 
 ## Install
@@ -88,17 +88,17 @@ scripts/ollama-local.sh serve
 scripts/ollama-local.sh build
 ```
 
-`build` downloads a Q8_0 GGUF of DeepHat-V1-7B into `.penetration-llm/ollama/gguf/` and creates the
+`build` downloads a Q8_0 GGUF of DeepHat-V1-7B into `.wizards-pick/ollama/gguf/` and creates the
 `deephat` model in the project-local store (defaults to the
 [mradermacher](https://huggingface.co/mradermacher/DeepHat-V1-7B-GGUF) Q8_0 quant; override with
 `DEEPHAT_GGUF_URL` / `DEEPHAT_GGUF_SHA256` for a smaller quant/mirror). No `ollama` on PATH?
-`scripts/ollama-local.sh install` vendors one into `.penetration-llm/runtime/` without touching
+`scripts/ollama-local.sh install` vendors one into `.wizards-pick/runtime/` without touching
 system paths.
 
 ## Run
 
 ```bash
-penetration-llm
+wizards-pick
 ```
 
 First run walks a short context wizard: targets, target type, allowed test categories, optional
@@ -132,9 +132,9 @@ Switch anytime with `/mode manual|assisted|automated`.
 
 ## Privacy model
 
-Everything runtime lives **inside the repo** under `.penetration-llm/` — session SQLite, reports,
+Everything runtime lives **inside the repo** under `.wizards-pick/` — session SQLite, reports,
 the Ollama model store, and all runtime state. The app deliberately does **not** touch
-`~/.penetration-llm`, `~/.ollama`, `/root/.ollama`, or the default Ollama `localhost:11434` store, so
+`~/.wizards-pick`, `~/.ollama`, `/root/.ollama`, or the default Ollama `localhost:11434` store, so
 it never collides with or leaks into a system Ollama install. The only network it uses is loopback to
 its own server.
 

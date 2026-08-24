@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from pentest_llm.models import ExecutionMode, Scope, Session
-from pentest_llm.storage import Storage
+from wizards_pick.models import ExecutionMode, Scope, Session
+from wizards_pick.storage import Storage
 
 
 @pytest.fixture

@@ -28,10 +28,10 @@ import os
 import sys
 from pathlib import Path
 
-# Prefer the in-repo vendored gguf (installed under .penetration-llm/python by
+# Prefer the in-repo vendored gguf (installed under .wizards-pick/python by
 # ollama-local.sh) so the build stays self-contained, then fall back to any gguf
 # already importable.
-_VENDOR = Path(__file__).resolve().parents[1] / ".penetration-llm" / "python"
+_VENDOR = Path(__file__).resolve().parents[1] / ".wizards-pick" / "python"
 if _VENDOR.is_dir():
     sys.path.insert(0, str(_VENDOR))
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from pentest_llm.models import CommandProposal, CommandResult, Finding, RiskLevel, Session
-from pentest_llm.report import export_markdown
-from pentest_llm.storage import Storage
+from wizards_pick.models import CommandProposal, CommandResult, Finding, RiskLevel, Session
+from wizards_pick.report import export_markdown
+from wizards_pick.storage import Storage
 
 
 def test_export_markdown_empty_session(storage: Storage, session: Session, tmp_path):
