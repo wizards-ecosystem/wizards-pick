@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import stat
+
 from wizards_pick.models import (
     CommandProposal,
     CommandResult,
@@ -100,3 +103,26 @@ def test_storage_isolates_by_session(storage: Storage, scope: Scope):
     b = storage.create_session("b", ExecutionMode.MANUAL, scope)
     storage.add_message(a.id, "user", "for-a")
     assert storage.list_messages(b.id) == []
+
+
+def test_unlimited_event_and_command_queries_return_full_history(
+    storage: Storage, session: Session
+):
+    proposal = CommandProposal.from_payload({"commands": ["true"]})
+    result = CommandResult(
+        command="true", exit_code=0, stdout="", stderr="", started_at="t0", completed_at="t1"
+    )
+    for index in range(205):
+        storage.add_event(session.id, "sample", {"index": index})
+        storage.add_command_run(session.id, proposal.to_dict(), result.to_dict(), "exit_0")
+
+    assert len(storage.list_events(session.id)) == 200
+    assert len(storage.list_events(session.id, limit=None)) == 205
+    assert len(storage.list_command_runs(session.id)) == 200
+    assert len(storage.list_command_runs(session.id, limit=None)) == 205
+
+
+def test_storage_files_are_owner_only(storage: Storage):
+    if os.name == "posix":
+        assert stat.S_IMODE(storage.path.parent.stat().st_mode) == 0o700
+        assert stat.S_IMODE(storage.path.stat().st_mode) == 0o600

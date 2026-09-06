@@ -32,6 +32,21 @@ class _FakeResponse:
         return iter(self._lines)
 
 
+class _FakeOpener:
+    def __init__(self, response=None, error: Exception | None = None):
+        self.response = response
+        self.error = error
+        self.request = None
+        self.timeout = None
+
+    def open(self, request, timeout=None):
+        self.request = request
+        self.timeout = timeout
+        if self.error:
+            raise self.error
+        return self.response
+
+
 def test_extract_json_payloads_from_fence_and_bare_and_dedup():
     text = (
         'prose\n```json\n{"type":"command_proposal","commands":["id"]}\n```\n'
@@ -150,41 +165,41 @@ def test_llmclient_default_max_tokens_tracks_reserve():
     assert LLMClient().max_tokens == RESPONSE_RESERVE_TOKENS
 
 
-def test_llmclient_streams_content_and_sends_configured_max_tokens(monkeypatch):
-    captured: dict = {}
-
-    def fake_urlopen(request, timeout=None):
-        captured["timeout"] = timeout
-        captured["body"] = json.loads(request.data.decode("utf-8"))
-        return _FakeResponse(
+def test_llmclient_streams_content_and_sends_configured_max_tokens():
+    opener = _FakeOpener(
+        response=_FakeResponse(
             [
                 b'data: {"choices":[{"delta":{"content":"nmap "}}]}\n',
                 b'data: {"choices":[{"delta":{"content":"-sV"}}]}\n',
                 b"data: [DONE]\n",
             ]
         )
-
-    monkeypatch.setattr(llm.urllib.request, "urlopen", fake_urlopen)
-    client = LLMClient(timeout=7, max_tokens=321)
+    )
+    client = LLMClient(timeout=7, max_tokens=321, opener=opener)
     out = "".join(client.chat([{"role": "user", "content": "hi"}]))
 
     assert out == "nmap -sV"
-    assert captured["timeout"] == 7
-    assert captured["body"]["max_tokens"] == 321
-    assert captured["body"]["stream"] is True
-    assert captured["body"]["messages"] == [{"role": "user", "content": "hi"}]
+    assert opener.timeout == 7
+    body = json.loads(opener.request.data.decode("utf-8"))
+    assert body["max_tokens"] == 321
+    assert body["stream"] is True
+    assert body["messages"] == [{"role": "user", "content": "hi"}]
 
 
-def test_llmclient_raises_llmerror_on_connection_failure(monkeypatch):
+def test_llmclient_raises_llmerror_on_connection_failure():
     import urllib.error
 
-    def boom(request, timeout=None):
-        raise urllib.error.URLError("connection refused")
-
-    monkeypatch.setattr(llm.urllib.request, "urlopen", boom)
+    opener = _FakeOpener(error=urllib.error.URLError("connection refused"))
     try:
-        list(LLMClient().chat([{"role": "user", "content": "hi"}]))
+        list(LLMClient(opener=opener).chat([{"role": "user", "content": "hi"}]))
     except llm.LLMError as exc:
-        assert "Could not reach local LLM server" in str(exc)
+        assert "Could not reach model server" in str(exc)
     else:  # pragma: no cover - the call above must raise
         raise AssertionError("expected LLMError")
+
+
+def test_loopback_url_detection():
+    assert llm._is_loopback_url("http://127.0.0.1:11435/v1/chat/completions")
+    assert llm._is_loopback_url("http://[::1]:11435/v1/chat/completions")
+    assert llm._is_loopback_url("http://localhost:11435/v1/chat/completions")
+    assert not llm._is_loopback_url("https://example.com/v1/chat/completions")

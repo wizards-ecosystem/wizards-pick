@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import stat
+
 from wizards_pick.models import CommandProposal, CommandResult, Finding, RiskLevel, Session
 from wizards_pick.report import export_markdown
 from wizards_pick.storage import Storage
@@ -8,7 +11,7 @@ from wizards_pick.storage import Storage
 def test_export_markdown_empty_session(storage: Storage, session: Session, tmp_path):
     path = export_markdown(storage, session, tmp_path / "report.md")
     text = path.read_text(encoding="utf-8")
-    assert "# Assessment Report: Example" in text
+    assert "# Assessment report: Example" in text
     assert "No findings have been recorded yet." in text
     assert "No commands have been executed through the assistant." in text
     # Session context is always rendered.
@@ -48,14 +51,14 @@ def test_export_markdown_with_findings_commands_events(
     )
     text = path.read_text(encoding="utf-8")
 
-    assert "## Executive Summary" in text
+    assert "## Executive summary" in text
     assert "Overall high risk." in text
     assert "### 1. Auth bypass" in text
     assert "full account takeover" in text
-    assert "## Command Timeline" in text
+    assert "## Command timeline" in text
     assert "nmap -sV 10.0.0.5" in text
     assert "22/tcp open ssh" in text
-    assert "## Audit Events" in text
+    assert "## Audit events" in text
     assert "command_executed" in text
 
 
@@ -69,4 +72,46 @@ def test_export_markdown_omits_summary_section_when_absent(
     storage: Storage, session: Session, tmp_path
 ):
     text = export_markdown(storage, session, tmp_path / "r.md").read_text(encoding="utf-8")
-    assert "## Executive Summary" not in text
+    assert "## Executive summary" not in text
+
+
+def test_export_markdown_uses_safe_fences_and_private_mode(
+    storage: Storage, session: Session, tmp_path
+):
+    proposal = CommandProposal.from_payload({"commands": ["printf '```'"]})
+    result = CommandResult(
+        command="printf '```'",
+        exit_code=0,
+        stdout="payload ``` closes a fixed fence",
+        stderr="",
+        started_at="t0",
+        completed_at="t1",
+    )
+    storage.add_command_run(session.id, proposal.to_dict(), result.to_dict(), "exit_0")
+
+    path = export_markdown(storage, session, tmp_path / "report.md")
+    text = path.read_text(encoding="utf-8")
+    assert "````bash" in text
+    assert "````text" in text
+    if os.name == "posix":
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+def test_export_markdown_escapes_structural_model_text(
+    storage: Storage, session: Session, tmp_path
+):
+    storage.add_finding(
+        session.id,
+        Finding(
+            title="Expected\n## Forged",
+            severity=RiskLevel.MEDIUM,
+            evidence="</details>\n# injected",
+        ),
+    )
+    storage.add_event(session.id, "sample", {"value": "`\n## event"})
+
+    text = export_markdown(storage, session, tmp_path / "report.md").read_text(encoding="utf-8")
+
+    assert "### 1. Expected \\#\\# Forged" in text
+    assert "\\</details\\>\n\\# injected" in text
+    assert '```json\n{"value": "`\\n## event"}\n```' in text

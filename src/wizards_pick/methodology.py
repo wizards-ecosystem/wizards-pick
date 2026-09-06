@@ -154,14 +154,14 @@ def format_methodology(scope: Scope, phase: str | None = None) -> str:
         available = ", ".join(guide.name for guide in PHASE_GUIDES)
         return f"No matching phase found. Available phases: {available}"
 
-    lines = ["# Assessment Plan", ""]
+    lines = ["# Assessment plan", ""]
     lines.append(f"Target type: {scope.target_type}")
     lines.append(f"Targets/context: {', '.join(scope.authorized_targets) or 'not specified'}")
     lines.append(f"Focus areas: {', '.join(scope.allowed_categories) or 'not specified'}")
     lines.append("")
 
     for guide in guides:
-        lines.append(f"## {guide.name.replace('_', ' ').title()}")
+        lines.append(f"## {guide.name.replace('_', ' ').capitalize()}")
         lines.append("")
         lines.append(guide.objective)
         lines.append("")

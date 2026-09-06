@@ -1,4 +1,4 @@
-"""wizards-pick: a local-first terminal assistant for authorized security testing."""
+"""The Wizard's Pick: a local-first assistant for authorized security testing."""
 
 __all__ = ["__version__"]
 

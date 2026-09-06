@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DATA_DIR="$ROOT/.wizards-pick"
@@ -14,21 +15,25 @@ MODEL="deephat"
 HOST="127.0.0.1:11435"
 BASE_URL="http://$HOST"
 OLLAMA_VERSION="v0.31.1"
+MODEL_REVISION="dcfd1c6fa3bfae69365e898cc394d3227e0a95a2"
 
 # Local pentest model build inputs. The GGUF is fetched into the repo and the
 # `deephat` tag is created from scripts/DeepHat.Modelfile (pins num_ctx 32768).
 MODELFILE="$ROOT/scripts/DeepHat.Modelfile"
 GGUF_DIR="$DATA_DIR/ollama/gguf"
 GGUF_PATH="$GGUF_DIR/DeepHat-V1-7B.Q8_0.gguf"
-# Q8_0 GGUF of DeepHat-V1-7B (~8.1 GB, near-lossless); override DEEPHAT_GGUF_URL
-# for a smaller quant/mirror. Optionally set DEEPHAT_GGUF_SHA256 to verify.
-DEEPHAT_GGUF_URL="${DEEPHAT_GGUF_URL:-https://huggingface.co/mradermacher/DeepHat-V1-7B-GGUF/resolve/main/DeepHat-V1-7B.Q8_0.gguf}"
-DEEPHAT_GGUF_SHA256="${DEEPHAT_GGUF_SHA256:-}"
+# Q8_0 GGUF of DeepHat-V1-7B (~8.1 GB). The default is pinned to an immutable
+# repository revision and checksum. Override both variables for another build.
+DEFAULT_GGUF_URL="https://huggingface.co/mradermacher/DeepHat-V1-7B-GGUF/resolve/$MODEL_REVISION/DeepHat-V1-7B.Q8_0.gguf"
+DEFAULT_GGUF_SHA256="56543c5c419205bb1024597193bc5258334be31d15cab823c3338810d3858f2f"
+DEEPHAT_GGUF_URL="${DEEPHAT_GGUF_URL:-$DEFAULT_GGUF_URL}"
+DEEPHAT_GGUF_SHA256="${DEEPHAT_GGUF_SHA256:-$DEFAULT_GGUF_SHA256}"
 OLLAMA_ARCHIVE="ollama-linux-amd64.tar.zst"
 OLLAMA_URL="https://github.com/ollama/ollama/releases/download/$OLLAMA_VERSION/$OLLAMA_ARCHIVE"
 OLLAMA_SHA256="d297381efc136451f6fabb9dd644a67f70fe51c16815a0c4a95ff0e327a3afb4"
 
 mkdir -p "$BIN_DIR" "$HOME_DIR" "$RUNTIME_DIR" "$MODELS_DIR" "$LOG_DIR" "$PYTHON_VENDOR_DIR"
+chmod 700 "$DATA_DIR"
 
 export HOME="$HOME_DIR"
 export XDG_CACHE_HOME="$DATA_DIR/cache"
@@ -41,10 +46,9 @@ export OLLAMA_MODELS="$MODELS_DIR"
 export OLLAMA_KEEP_ALIVE="30m"
 export OLLAMA_MAX_LOADED_MODELS="1"
 export OLLAMA_NUM_PARALLEL="1"
-# f16 KV cache for maximum attention precision. On 16 GB VRAM this is affordable
-# alongside Q8_0 weights at the 32K window (~1.8 GB KV); flash attention still
-# helps speed/memory. Switch to q8_0 here if you want to trade a little precision
-# for a much larger KV budget (e.g. to push context past 32K with rope-scaling).
+# The f16 KV cache uses about 1.8 GB at the 32K window. With Q8_0 weights, the
+# configured model fits a 16 GB GPU in the tested setup. q8_0 reduces KV memory
+# if a different context or hardware configuration needs more capacity.
 export OLLAMA_FLASH_ATTENTION="1"
 export OLLAMA_KV_CACHE_TYPE="f16"
 
@@ -67,7 +71,7 @@ Commands:
   paths       Print project-local paths
 
 The app is configured for $BASE_URL/v1/chat/completions and model $MODEL.
-Set DEEPHAT_GGUF_URL (and optionally DEEPHAT_GGUF_SHA256) before 'build'.
+Set both DEEPHAT_GGUF_URL and DEEPHAT_GGUF_SHA256 before 'build' to use another GGUF.
 EOF
 }
 
@@ -147,7 +151,7 @@ extract_archive() {
   fi
 
   PYTHONPATH="$PYTHON_VENDOR_DIR${PYTHONPATH:+:$PYTHONPATH}" "$python_bin" - <<'PY' || \
-    "$python_bin" -m pip install --quiet --target "$PYTHON_VENDOR_DIR" zstandard
+    "$python_bin" -m pip install --quiet --target "$PYTHON_VENDOR_DIR" 'zstandard==0.25.0'
 import zstandard  # noqa: F401
 PY
 
@@ -191,7 +195,8 @@ serve_local() {
 
 fetch_gguf() {
   if [[ -f "$GGUF_PATH" ]]; then
-    echo "GGUF already present: $GGUF_PATH"
+    verify_gguf
+    echo "Verified existing GGUF: $GGUF_PATH"
     return 0
   fi
   if [[ -z "$DEEPHAT_GGUF_URL" ]]; then
@@ -199,12 +204,37 @@ fetch_gguf() {
     echo "Q8_0 GGUF of DeepHat-V1-7B (default: mradermacher/DeepHat-V1-7B-GGUF)." >&2
     exit 1
   fi
-  mkdir -p "$GGUF_DIR"
-  curl --fail --location --show-error --output "$GGUF_PATH" "$DEEPHAT_GGUF_URL"
-  if [[ -n "$DEEPHAT_GGUF_SHA256" ]]; then
-    printf '%s  %s\n' "$DEEPHAT_GGUF_SHA256" "$GGUF_PATH" | sha256sum -c -
+  if [[ -z "$DEEPHAT_GGUF_SHA256" ]]; then
+    echo "DEEPHAT_GGUF_SHA256 is required." >&2
+    exit 1
   fi
+  validate_gguf_checksum
+  mkdir -p "$GGUF_DIR"
+  local download
+  download="$(mktemp "$GGUF_DIR/.DeepHat-V1-7B.Q8_0.gguf.XXXXXX")"
+  trap 'rm -f "${download:-}"' RETURN
+  curl --fail --location --show-error --retry 3 --retry-all-errors \
+    --output "$download" "$DEEPHAT_GGUF_URL"
+  printf '%s  %s\n' "$DEEPHAT_GGUF_SHA256" "$download" | sha256sum -c -
+  mv "$download" "$GGUF_PATH"
+  trap - RETURN
   echo "GGUF saved to $GGUF_PATH"
+}
+
+verify_gguf() {
+  if [[ -z "$DEEPHAT_GGUF_SHA256" ]]; then
+    echo "DEEPHAT_GGUF_SHA256 is required." >&2
+    exit 1
+  fi
+  validate_gguf_checksum
+  printf '%s  %s\n' "$DEEPHAT_GGUF_SHA256" "$GGUF_PATH" | sha256sum -c -
+}
+
+validate_gguf_checksum() {
+  if [[ ! "$DEEPHAT_GGUF_SHA256" =~ ^[[:xdigit:]]{64}$ ]]; then
+    echo "DEEPHAT_GGUF_SHA256 must be a 64-character hexadecimal digest." >&2
+    exit 1
+  fi
 }
 
 create_model() {
@@ -214,6 +244,7 @@ create_model() {
     echo "Missing GGUF at $GGUF_PATH. Run: scripts/ollama-local.sh fetch-gguf" >&2
     exit 1
   fi
+  verify_gguf
   if ! server_ready; then
     "$ollama_bin" serve >"$LOG_DIR/ollama.log" 2>&1 &
     server_pid="$!"

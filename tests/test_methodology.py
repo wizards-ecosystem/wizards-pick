@@ -38,7 +38,7 @@ def test_format_methodology_unknown_phase_lists_available(scope: Scope):
 
 def test_format_methodology_renders_sections(scope: Scope):
     out = format_methodology(scope, "recon")
-    assert out.startswith("# Assessment Plan")
+    assert out.startswith("# Assessment plan")
     assert "## Recon" in out
     assert "Evidence to capture:" in out
     assert "Decision points:" in out

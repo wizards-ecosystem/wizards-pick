@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
-"""Bake YaRN rope-scaling metadata into a GGUF so llama.cpp/Ollama can serve a
-context window larger than the model's trained length without attention decay.
+"""Bake experimental YaRN rope-scaling metadata into a GGUF.
 
-Qwen2.5-Coder-7B (DeepHat's base) is trained at 32768 tokens and extends cleanly
-with YaRN (the method the Qwen team recommends). Ollama's Modelfile does not
-expose a rope-scaling type, but the llama.cpp core it runs reads the scaling
-config straight from GGUF metadata keys:
+Qwen2.5-Coder-7B, DeepHat's base, has a 32768-token context window. The
+llama.cpp core used by Ollama reads these scaling values from GGUF metadata:
 
     <arch>.rope.scaling.type                    = "yarn"
     <arch>.rope.scaling.factor                  = <factor>          (f32)
     <arch>.rope.scaling.original_context_length = <trained ctx>     (u32)
 
-so writing them into the file is the robust, self-contained way to unlock a
-bigger window. factor 2.0 -> 64K, 3.0 -> 96K, 4.0 -> 128K. Keep factor as small
-as the target window needs: static YaRN trades a little short-context accuracy
-for the extended range, and the penalty grows with the factor.
+factor 2.0 -> 64K, 3.0 -> 96K, 4.0 -> 128K. Static YaRN can reduce
+short-context accuracy, so evaluate the resulting model for your workload.
 
 The transform streams tensor data straight through, so it needs no extra RAM for
 the 8 GB of weights, only a second copy on disk. It is idempotent: re-running
@@ -25,17 +20,14 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
-# Prefer the in-repo vendored gguf (installed under .wizards-pick/python by
-# ollama-local.sh) so the build stays self-contained, then fall back to any gguf
-# already importable.
-_VENDOR = Path(__file__).resolve().parents[1] / ".wizards-pick" / "python"
-if _VENDOR.is_dir():
-    sys.path.insert(0, str(_VENDOR))
-
-import gguf  # noqa: E402
+try:
+    import gguf
+except ImportError as exc:
+    raise SystemExit(
+        "The optional 'gguf' package is required: pip install 'wizards-pick[rope]'"
+    ) from exc
 
 TYPE_KEY = "{arch}.rope.scaling.type"
 FACTOR_KEY = "{arch}.rope.scaling.factor"

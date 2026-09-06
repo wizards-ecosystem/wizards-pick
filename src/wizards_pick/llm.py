@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Iterable
 
@@ -59,39 +61,49 @@ class LLMError(RuntimeError):
 
 
 class LLMClient:
-    def __init__(self, timeout: int = 120, max_tokens: int = RESPONSE_RESERVE_TOKENS):
+    def __init__(
+        self,
+        timeout: int = 120,
+        max_tokens: int = RESPONSE_RESERVE_TOKENS,
+        url: str = LOCAL_LLM_URL,
+        model: str = LOCAL_LLM_MODEL,
+        opener: urllib.request.OpenerDirector | None = None,
+    ):
         self.timeout = timeout
         self.max_tokens = max_tokens
+        self.url = url
+        self.model = model
+        self._opener = opener or (
+            _local_opener() if _is_loopback_url(url) else urllib.request.build_opener()
+        )
 
     def chat(self, messages: list[dict[str, str]]) -> Iterable[str]:
         # Generation defaults (temperature, top_p, num_predict) live in the
         # Modelfile; max_tokens is a hard client-side cap against runaway output,
         # kept in lock-step with the reply budget the context window reserves.
         payload = {
-            "model": LOCAL_LLM_MODEL,
+            "model": self.model,
             "messages": messages,
             "max_tokens": self.max_tokens,
             "stream": True,
         }
         request = urllib.request.Request(
-            LOCAL_LLM_URL,
+            self.url,
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
 
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with self._opener.open(request, timeout=self.timeout) as response:
                 yield from self._stream_response(response)
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
-            raise LLMError(f"Local LLM server returned HTTP {exc.code}: {detail}") from exc
+            raise LLMError(f"Model server returned HTTP {exc.code}: {detail}") from exc
         except urllib.error.URLError as exc:
-            raise LLMError(
-                f"Could not reach local LLM server {LOCAL_LLM_URL}: {exc.reason}"
-            ) from exc
+            raise LLMError(f"Could not reach model server {self.url}: {exc.reason}") from exc
         except TimeoutError as exc:
-            raise LLMError(f"Local LLM server timed out after {self.timeout} seconds") from exc
+            raise LLMError(f"Model server timed out after {self.timeout} seconds") from exc
 
     def _stream_response(self, response) -> Iterable[str]:
         for raw_line in response:
@@ -115,6 +127,27 @@ class LLMClient:
                 yield content
 
 
+class _RejectRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _local_opener() -> urllib.request.OpenerDirector:
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}), _RejectRedirects())
+
+
+def _is_loopback_url(url: str) -> bool:
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return False
+    if parsed.hostname.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(parsed.hostname).is_loopback
+    except ValueError:
+        return False
+
+
 def build_messages(
     scope: Scope,
     history: list[dict[str, str]],
@@ -126,7 +159,7 @@ def build_messages(
     """Build the chat request: system framing, budgeted history, current turn.
 
     With ``budget`` set (the default) the history is trimmed to fit the model's
-    context window — the system framing and current turn are always kept, recent
+    context window. The system framing and current turn are always kept, recent
     history fills the rest, and oversized single messages are truncated. Pass
     ``budget=False`` to assemble the raw message list without trimming.
     """
@@ -206,7 +239,7 @@ _MD_FIELD_MAP = {
 
 
 def _looks_like_prose(line: str) -> bool:
-    """A capitalized, multi-word sentence — the model sometimes drops these in a fence."""
+    """A capitalized, multi-word sentence the model sometimes drops in a fence."""
     words = line.split()
     return len(words) >= 6 and line[:1].isupper() and line.rstrip().endswith((".", ":", "?"))
 

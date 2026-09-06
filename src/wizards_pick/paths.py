@@ -16,8 +16,12 @@ def _env_int(name: str, default: int) -> int:
     return value if value > 0 else default
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-PROJECT_DATA_DIR = PROJECT_ROOT / ".wizards-pick"
+PROJECT_ROOT = Path(os.environ.get("WIZARDS_PICK_PROJECT_ROOT", Path.cwd())).expanduser().resolve()
+PROJECT_DATA_DIR = (
+    Path(os.environ.get("WIZARDS_PICK_DATA_DIR", PROJECT_ROOT / ".wizards-pick"))
+    .expanduser()
+    .resolve()
+)
 
 # Local security-tuned model (DeepHat-V1-7B, built from the in-repo Modelfile).
 # Override per-session for one-off tasks, e.g. WIZARDS_PICK_MODEL=qwen2.5-coder:7b.
@@ -31,8 +35,10 @@ LOCAL_LLM_URL = os.environ.get(
 # Context window the model was built with (Modelfile pins num_ctx 32768). History is
 # budgeted to fit this so long engagements never silently overflow the window.
 CONTEXT_WINDOW_TOKENS = _env_int("WIZARDS_PICK_CONTEXT_TOKENS", 32768)
-# Tokens reserved for the model's reply; mirrors max_tokens/num_predict (1024).
-RESPONSE_RESERVE_TOKENS = _env_int("WIZARDS_PICK_RESPONSE_TOKENS", 1024)
+# Tokens reserved for the model's reply; mirrors max_tokens/num_predict.
+RESPONSE_RESERVE_TOKENS = min(
+    _env_int("WIZARDS_PICK_RESPONSE_TOKENS", 2048), max(1, CONTEXT_WINDOW_TOKENS - 1)
+)
 
 DB_PATH = PROJECT_DATA_DIR / "sessions.sqlite"
 REPORTS_DIR = PROJECT_DATA_DIR / "reports"

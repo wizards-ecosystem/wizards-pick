@@ -9,7 +9,7 @@ from typing import Any
 def utc_now() -> str:
     # Microsecond precision keeps the audit trail exact and, because the offset is
     # always +00:00 and the width is fixed, the ISO strings sort correctly as plain
-    # text — which is how sessions are ordered (see Storage.latest_session).
+    # text. This is how sessions are ordered (see Storage.latest_session).
     return datetime.now(UTC).isoformat(timespec="microseconds")
 
 
@@ -168,6 +168,7 @@ class CommandResult:
     started_at: str
     completed_at: str
     timed_out: bool = False
+    output_truncated: bool = False
 
     def combined_output(self) -> str:
         parts = []

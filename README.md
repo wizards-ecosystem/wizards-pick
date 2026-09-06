@@ -1,168 +1,186 @@
 <div align="center">
 
-# wizards-pick
+<img src="https://raw.githubusercontent.com/wizards-ecosystem/wizards-pick/main/docs/assets/pick-header.png" alt="The Wizard's Pick" width="100%">
 
-**Your local-first lockpick for authorized security testing. An offensive-security model runs on your machine; nothing leaves it.**
+# The Wizard's Pick
 
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Inference](https://img.shields.io/badge/inference-100%25%20local-success)](#how-it-works)
-[![Model](https://img.shields.io/badge/model-DeepHat--V1--7B-0EA5A5)](#the-model)
-[![Deps](https://img.shields.io/badge/network-loopback%20only-lightgrey)](#privacy-model)
+A terminal assistant for authorized security testing, with local inference by default.
+
+**Status: Working, public.** Version 0.2.0 is the current release.
+
+[![CI](https://github.com/wizards-ecosystem/wizards-pick/actions/workflows/ci.yml/badge.svg)](https://github.com/wizards-ecosystem/wizards-pick/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11%2B-5d32a8)](https://github.com/wizards-ecosystem/wizards-pick/blob/main/pyproject.toml)
+[![License](https://img.shields.io/badge/license-MIT-342c3a)](https://github.com/wizards-ecosystem/wizards-pick/blob/main/LICENSE)
 
 </div>
 
----
+> [!WARNING]
+> Pick proposes and can execute shell commands. Use it only on systems you own or have
+> explicit written permission to test. You are responsible for the authorized targets,
+> techniques, testing window, credentials, data handling, and operating environment.
 
-> ### ⚠️ Authorized use only
-> This tool proposes and, in its higher modes, runs security-testing commands. Use it **only**
-> against systems you own or have explicit written permission to test. You are responsible for
-> staying inside your authorization, scope, and testing window. It ships with **no scope matcher,
-> no denylist, and no output redaction** — those guardrails are yours to bring. See
-> [Lean by design](#lean-by-design).
+## What The Wizard's Pick does
 
-## Why local-first
-
-An AI pentest helper is worthless if using it means shipping your recon, your target names, and your
-command output to someone else's servers. So this one doesn't. The model runs on your machine
-through a **project-local** Ollama server on loopback, the session lives in a local SQLite file, and
-there are no remote endpoints and no API keys anywhere in the app. What you test stays on the box you
-test from.
-
-## How it works
+Pick keeps assessment context, model conversation, command results, findings, and reports in a
+local SQLite-backed workflow. It uses an OpenAI-compatible model endpoint, configured by default
+for a project-local Ollama server at `127.0.0.1:11435`.
 
 ```mermaid
 flowchart LR
-    U["you"] --> C["wizards-pick<br/><i>terminal chat</i>"]
-    C -->|"127.0.0.1:11435"| O["Ollama<br/><i>project-local</i>"]
-    O --> M["DeepHat-V1-7B<br/><i>offensive-security fine-tune</i>"]
-    C -->|"propose"| X["command"]
-    X -->|"manual · assisted · automated"| R["executor"]
-    R --> DB[("SQLite<br/>session + findings")]
-    DB --> RP["Markdown report"]
-    style C fill:#2563EB,color:#fff
-    style M fill:#0EA5A5,color:#fff
+    U[Operator] --> P[Pick terminal]
+    P -->|127.0.0.1:11435| O[Project-local Ollama]
+    O --> M[DeepHat-V1-7B]
+    P --> C[Shell command]
+    C --> D[(SQLite session)]
+    D --> R[Markdown report]
 ```
 
-The model proposes pentest-aware commands for the phase you're in. Depending on the execution mode
-you run them yourself and paste output back, confirm each one, or let it run them directly. Every
-command and finding is captured to SQLite and exports to a Markdown report.
+The model can return structured command proposals and findings. Pick records commands executed
+through the application and exports all recorded command and audit entries for a session, with
+bounded output excerpts.
 
-## The model
+## Execution model
 
-`deephat` is **DeepHat-V1-7B**, an offensive-security fine-tune of Qwen2.5-Coder-7B, built locally
-from an in-repo Modelfile. It ships as the near-lossless **Q8_0** quant (~8.1 GB) and pins the
-model's full **32K native context** with an **f16 KV cache** for maximum precision — the whole thing
-still fits a **16 GB GPU** (~8.1 GB weights + ~1.8 GB KV) with `OLLAMA_FLASH_ATTENTION=1`. Sampling
-is tuned for command fidelity (low temperature, gentle repeat penalty). 32K is the base model's
-trained ceiling; the Modelfile documents an optional rope-scaling block to experiment past it.
+Pick is intentionally lean. It does not include a scope matcher, command denylist, sandbox,
+approval service, or output redaction. Commands are passed to the host shell as written. Operators
+who need those controls should provide them through the account, container, virtual machine,
+network, and engagement process used to run Pick.
 
-Every request is **budgeted to that window** so long engagements never overflow it: the system
-framing and your latest turn are always kept, recent history fills the remaining space, and a
-single oversized message (a huge scan dump) is trimmed head-and-tail instead of silently pushing
-the conversation out of context. Tune it with `WIZARDS_PICK_CONTEXT_TOKENS` if you rebuild the model
-with a different `num_ctx`.
+| Mode | Behavior |
+|---|---|
+| `manual` | Default. The model proposes commands; the operator runs them elsewhere and can paste the output back. |
+| `assisted` | Pick asks once before executing a proposal. |
+| `automated` | Pick executes parsed model proposals without confirmation, including proposals influenced by captured target output. |
+
+`/exec` always executes the supplied command, independent of the current mode. The default
+wall-clock timeout is 300 seconds, and combined captured output is limited to 1,000,000 bytes. Pick
+terminates the POSIX process group when either bound is reached. These resource bounds do not
+inspect or rewrite the command.
+
+## Requirements
+
+- Python 3.11 or newer
+- Linux or WSL2 for the bundled model setup script
+- x86-64 for the pinned Ollama archive
+- `curl`, `tar`, and `sha256sum`
+- approximately 20 GB of free storage for the runtime, downloaded GGUF, and imported model
+
+The Python client may work on other platforms when you manage a compatible endpoint yourself. The
+repository's end-to-end setup and CI target Linux.
 
 ## Install
 
+Install the CLI from PyPI:
+
 ```bash
-python3 -m venv .venv && source .venv/bin/activate    # Linux / Kali / WSL
+python -m pip install wizards-pick
+```
+
+A source checkout includes the project-local Ollama and model setup scripts:
+
+```bash
+git clone https://github.com/wizards-ecosystem/wizards-pick.git
+cd wizards-pick
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install -e .
 ```
 
-<details><summary>Windows PowerShell</summary>
+See the [release checklist](https://github.com/wizards-ecosystem/wizards-pick/blob/main/RELEASING.md)
+for maintainer steps.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e .
-```
-</details>
+## Set up the model
 
-## Set up the local model
+In the first terminal:
 
 ```bash
-# Terminal 1 — start the project-local Ollama server
+scripts/ollama-local.sh install
 scripts/ollama-local.sh serve
+```
 
-# Terminal 2 — build the deephat model into this repo
+In a second terminal:
+
+```bash
 scripts/ollama-local.sh build
 ```
 
-`build` downloads a Q8_0 GGUF of DeepHat-V1-7B into `.wizards-pick/ollama/gguf/` and creates the
-`deephat` model in the project-local store (defaults to the
-[mradermacher](https://huggingface.co/mradermacher/DeepHat-V1-7B-GGUF) Q8_0 quant; override with
-`DEEPHAT_GGUF_URL` / `DEEPHAT_GGUF_SHA256` for a smaller quant/mirror). No `ollama` on PATH?
-`scripts/ollama-local.sh install` vendors one into `.wizards-pick/runtime/` without touching
-system paths.
+`build` downloads DeepHat-V1-7B Q8_0 from a pinned Hugging Face revision, verifies its SHA-256
+digest, and creates the `deephat` Ollama model in `.wizards-pick/`. To use another GGUF, set both
+`DEEPHAT_GGUF_URL` and `DEEPHAT_GGUF_SHA256`.
 
-## Run
+The application code is MIT-licensed. The default model repository identifies the model license as
+Apache-2.0. Review the model card and license before redistribution:
+[mradermacher/DeepHat-V1-7B-GGUF](https://huggingface.co/mradermacher/DeepHat-V1-7B-GGUF).
+
+`scripts/bake_rope.py` can write experimental YaRN metadata for larger context windows. Install the
+optional dependency with `python -m pip install -e ".[rope]"` and evaluate the resulting model for
+your workload.
+
+## Run The Wizard's Pick
 
 ```bash
 wizards-pick
 ```
 
-First run walks a short context wizard: targets, target type, allowed test categories, optional
-exclusions, testing window, authorization reference, intensity, and notes. The scope you set is what
-the model plans against.
+The first session wizard records targets and context, focus areas, exclusions, testing window,
+authorization reference, intensity, emergency contact, and notes. This information guides the
+model. Pick does not enforce it against generated commands.
 
-## Execution modes
+## Interactive commands
 
-| Mode | Behavior |
+| Command | Behavior |
 |---|---|
-| `manual` | **Default.** The model proposes; you run commands externally and paste output back. Nothing executes on its own. |
-| `assisted` | Proposed commands require a single confirmation before running. |
-| `automated` | Proposed commands run directly after parsing. Use only where you are fully authorized. |
-
-Switch anytime with `/mode manual|assisted|automated`.
-
-## Commands
-
-| Command | Does |
-|---|---|
-| `/context` · `/scope` | Print the session scope |
-| `/plan [phase\|all]` | Offline assessment plan for the current scope |
-| `/tools` | Check which common local assessment tools are installed |
-| `/exec <cmd>` | Run a local command and store the output |
-| `/paste` | Paste command output until a line with only `EOF` |
-| `/findings` | List stored findings |
-| `/report [path]` | Export a Markdown report |
+| `/context`, `/scope` | Show the session context |
 | `/sessions` | List saved sessions |
-| `/timeout [secs]` | Show or set the command timeout |
-| `/help` · `/exit` | Help · quit |
+| `/plan [phase\|all]` | Show an offline assessment plan |
+| `/tools` | Check common assessment tools on `PATH` |
+| `/mode manual\|assisted\|automated` | Change execution mode |
+| `/timeout [seconds]` | Show or set the positive command timeout |
+| `/exec <command>` | Execute a shell command and record the result |
+| `/paste` | Paste external output, ending with a line containing only `EOF` |
+| `/findings` | List recorded findings |
+| `/report [path]` | Export a Markdown report |
+| `/help`, `/exit` | Show help or quit |
 
-## Privacy model
+## Data and network behavior
 
-Everything runtime lives **inside the repo** under `.wizards-pick/` — session SQLite, reports,
-the Ollama model store, and all runtime state. The app deliberately does **not** touch
-`~/.wizards-pick`, `~/.ollama`, `/root/.ollama`, or the default Ollama `localhost:11434` store, so
-it never collides with or leaks into a system Ollama install. The only network it uses is loopback to
-its own server.
+By default, CLI state is written to `.wizards-pick/` under the directory where Pick starts. Set
+`WIZARDS_PICK_DATA_DIR` to choose another location. The setup script keeps its Ollama runtime,
+model, cache, home, and logs in the repository's `.wizards-pick/` directory.
 
-## Lean by design
+State directories are created with owner-only permissions on POSIX systems. SQLite files and
+reports are written with mode `0600`. Reports and command history are unredacted and may contain
+sensitive assessment data.
 
-This is a focused tool, not a framework. On purpose, it has:
+Inference uses loopback by default. The setup commands download Ollama and the model, and executed
+assessment commands can use the network. `WIZARDS_PICK_URL` can point the client at another
+OpenAI-compatible endpoint, but Pick does not add authentication headers. A remote endpoint
+receives session context and conversation content.
 
-- no built-in scope matcher
-- no output redaction layer
-- no command denylist
-- no remote LLM endpoints or API keys
+Related settings:
 
-Execution is governed entirely by the mode you choose. Bring your own operational guardrails,
-authorization workflow, and target restrictions.
+| Variable | Default |
+|---|---|
+| `WIZARDS_PICK_DATA_DIR` | `<current directory>/.wizards-pick` |
+| `WIZARDS_PICK_MODEL` | `deephat` |
+| `WIZARDS_PICK_OLLAMA_HOST` | `127.0.0.1:11435` |
+| `WIZARDS_PICK_URL` | `http://127.0.0.1:11435/v1/chat/completions` |
+| `WIZARDS_PICK_CONTEXT_TOKENS` | `32768` |
+| `WIZARDS_PICK_RESPONSE_TOKENS` | `2048` |
 
 ## Development
 
 ```bash
-python -m pip install -e ".[dev]"   # app + pytest, ruff, mypy
-make check                          # ruff lint + format check + mypy + pytest
+python -m pip install -e ".[dev]"
+make check
+make release-check
 ```
 
-Or run the gates individually: `make test`, `make lint`, `make format`, `make typecheck`. The same
-checks run in CI on every push and pull request. The test suite is fully offline — it never needs
-the model or the network.
-
----
+`make check` runs Ruff, mypy, and pytest. The test suite does not require a model server or network
+access. See the
+[contribution guide](https://github.com/wizards-ecosystem/wizards-pick/blob/main/CONTRIBUTING.md)
+and [security policy](https://github.com/wizards-ecosystem/wizards-pick/security/policy).
 
 <div align="center">
-<sub>Built by <a href="https://isaaclimb.com">Isaac Limb</a> · <a href="https://isaaclimb.com/projects/penetration-llm.html">Project writeup</a></sub>
+<sub>Maintained by <a href="https://isaaclimb.com">Isaac Limb</a>. Read the <a href="https://isaaclimb.com/projects/penetration-llm.html">project writeup</a>.</sub>
 </div>

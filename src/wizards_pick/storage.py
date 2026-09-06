@@ -10,6 +10,7 @@ from typing import Any
 
 from .models import ExecutionMode, Finding, Scope, Session, utc_now
 from .paths import DB_PATH
+from .private_io import ensure_private_directory, ensure_private_file, harden_existing_file
 
 DEFAULT_DB_PATH = DB_PATH
 
@@ -17,18 +18,26 @@ DEFAULT_DB_PATH = DB_PATH
 class Storage:
     def __init__(self, path: Path | str = DEFAULT_DB_PATH):
         self.path = Path(path).expanduser()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        ensure_private_directory(self.path.parent)
+        ensure_private_file(self.path)
         self._init_db()
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
         conn = sqlite3.connect(self.path)
+        self._harden_sqlite_files()
         conn.row_factory = sqlite3.Row
         try:
             yield conn
             conn.commit()
         finally:
             conn.close()
+            self._harden_sqlite_files()
+
+    def _harden_sqlite_files(self) -> None:
+        harden_existing_file(self.path)
+        harden_existing_file(Path(f"{self.path}-wal"))
+        harden_existing_file(Path(f"{self.path}-shm"))
 
     def _init_db(self) -> None:
         with self.connect() as conn:
@@ -193,17 +202,21 @@ class Storage:
                 (session_id, kind, json.dumps(data, sort_keys=True), utc_now()),
             )
 
-    def list_events(self, session_id: str, limit: int = 200) -> list[dict[str, Any]]:
+    def list_events(self, session_id: str, limit: int | None = 200) -> list[dict[str, Any]]:
+        limit_clause = " LIMIT ?" if limit is not None else ""
+        parameters: tuple[str, int] | tuple[str] = (
+            (session_id, limit) if limit is not None else (session_id,)
+        )
         with self.connect() as conn:
             rows = conn.execute(
-                """
+                f"""
                 SELECT kind, data_json, created_at
                 FROM events
                 WHERE session_id = ?
                 ORDER BY id ASC
-                LIMIT ?
+                {limit_clause}
                 """,
-                (session_id, limit),
+                parameters,
             ).fetchall()
         return [
             {
@@ -236,17 +249,21 @@ class Storage:
                 ),
             )
 
-    def list_command_runs(self, session_id: str, limit: int = 200) -> list[dict[str, Any]]:
+    def list_command_runs(self, session_id: str, limit: int | None = 200) -> list[dict[str, Any]]:
+        limit_clause = " LIMIT ?" if limit is not None else ""
+        parameters: tuple[str, int] | tuple[str] = (
+            (session_id, limit) if limit is not None else (session_id,)
+        )
         with self.connect() as conn:
             rows = conn.execute(
-                """
+                f"""
                 SELECT proposal_json, result_json, status, created_at
                 FROM command_runs
                 WHERE session_id = ?
                 ORDER BY id ASC
-                LIMIT ?
+                {limit_clause}
                 """,
-                (session_id, limit),
+                parameters,
             ).fetchall()
         return [
             {

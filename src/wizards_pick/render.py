@@ -25,15 +25,15 @@ def literal_panel(
     content: str,
     *,
     title: str | None = None,
-    border_style: str = "cyan",
+    border_style: str = "#75c8ba",
     expand: bool = True,
 ) -> Panel:
-    """A panel whose body is rendered literally — never parsed as Rich markup."""
+    """A panel whose body is rendered literally and never parsed as Rich markup."""
     return Panel(Text(content), title=title, border_style=border_style, expand=expand)
 
 
 def stream_chunk(chunk: str) -> None:
-    """Write a streamed model chunk verbatim — no markup, no syntax highlighting."""
+    """Write a streamed model chunk verbatim with no markup or syntax highlighting."""
     console.print(chunk, end="", markup=False, highlight=False, soft_wrap=True)
 
 
@@ -43,8 +43,8 @@ def print_status(prefix_markup: str, value: str) -> None:
 
 
 def display_proposal(proposal: CommandProposal) -> None:
-    table = Table(title="Command Proposal")
-    table.add_column("Field", style="cyan")
+    table = Table(title="Command proposal")
+    table.add_column("Field", style="#75c8ba")
     table.add_column("Value")
     table.add_row("Phase", Text(proposal.phase))
     table.add_row("Technique", Text(proposal.technique))
@@ -98,8 +98,8 @@ def print_sessions(sessions: list[Session]) -> None:
 
 
 def print_tools(statuses: list[ToolStatus]) -> None:
-    table = Table(title="Local Tool Inventory")
-    table.add_column("Category", style="cyan")
+    table = Table(title="Local tool inventory")
+    table.add_column("Category", style="#75c8ba")
     table.add_column("Tool")
     table.add_column("Status")
     table.add_column("Path")

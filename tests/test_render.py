@@ -56,7 +56,7 @@ def test_display_proposal_survives_hostile_fields(recording):
         next_steps=HOSTILE,
     )
     render.display_proposal(proposal)
-    assert "Command Proposal" in recording.export_text()
+    assert "Command proposal" in recording.export_text()
 
 
 def test_print_findings_survives_hostile_title(recording):

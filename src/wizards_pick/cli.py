@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -12,6 +13,7 @@ except ImportError:  # pragma: no cover - exercised only without optional depend
     print("Rich is required. Install with: python -m pip install -e .", file=sys.stderr)
     raise
 
+from . import __version__
 from .executor import CommandExecutor
 from .llm import (
     ROLE_PROMPTS,
@@ -39,6 +41,7 @@ from .report import export_markdown
 from .storage import Storage
 
 HISTORY_FETCH_LIMIT = 200
+MODEL_OUTPUT_CONTEXT_CHARS = 32_000
 
 HELP_TEXT = """Available commands:
 
@@ -60,8 +63,9 @@ HELP_TEXT = """Available commands:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="wizards-pick",
-        description="Local-first terminal assistant for authorized security testing.",
+        description="The Wizard's Pick: a terminal assistant for authorized security testing.",
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--session", help="Resume a specific session id.")
     parser.add_argument("--new", action="store_true", help="Create a new session.")
     args = parser.parse_args(argv)
@@ -84,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def create_session_wizard(storage: Storage) -> Session:
-    console.print(Panel.fit("wizards-pick security session", border_style="cyan"))
+    console.print(Panel.fit("The Wizard's Pick security session", border_style="#75c8ba"))
     name = Prompt.ask("Session name", default="Pentest session")
     mode = _prompt_mode(default=ExecutionMode.MANUAL)
 
@@ -131,7 +135,7 @@ def chat_loop(storage: Storage, session: Session) -> None:
 
     while True:
         try:
-            text = Prompt.ask("[bold cyan]you[/bold cyan]").strip()
+            text = Prompt.ask("[bold #75c8ba]you[/bold #75c8ba]").strip()
         except (KeyboardInterrupt, EOFError):
             console.print()
             return
@@ -211,7 +215,7 @@ def handle_command(
         run_proposal(storage, session, executor, proposal, confirm=False)
         return False
     if command == "/report":
-        default_path = REPORTS_DIR / f"{session.name.lower().replace(' ', '-')}-{session.id[:8]}.md"
+        default_path = REPORTS_DIR / f"{_report_slug(session.name)}-{session.id[:8]}.md"
         destination = Path(arg.strip()) if arg.strip() else default_path
         summary = generate_executive_summary(storage, session, client)
         report_path = export_markdown(storage, session, destination, executive_summary=summary)
@@ -229,7 +233,7 @@ def _handle_timeout(
     arg: str, storage: Storage, session: Session, executor: CommandExecutor
 ) -> None:
     if not arg.strip():
-        console.print(f"Current command timeout: [cyan]{executor.timeout} seconds[/cyan]")
+        console.print(f"Current command timeout: [#75c8ba]{executor.timeout} seconds[/#75c8ba]")
         return
     try:
         timeout = int(arg.strip())
@@ -259,8 +263,7 @@ def _handle_mode(arg: str, storage: Storage, session: Session) -> None:
 
 
 def ask_model(storage: Storage, session: Session, client: LLMClient) -> str:
-    # The model runs a 32K context window; history is budgeted to fit it (see
-    # context.py), so long engagements stay in-window instead of overflowing.
+    # History is approximately budgeted to the configured context window.
     history = storage.list_messages(session.id, limit=HISTORY_FETCH_LIMIT)
     messages = build_messages(session.scope, history)
     console.print("[bold magenta]assistant[/bold magenta]")
@@ -332,7 +335,9 @@ def process_model_response(
 
     display_proposal(proposal)
     if session.mode == ExecutionMode.MANUAL:
-        console.print("[cyan]Manual mode:[/cyan] run externally, then use `/paste` for output.")
+        console.print(
+            "[#75c8ba]Manual mode:[/#75c8ba] run externally, then use `/paste` for output."
+        )
         return
     if session.mode == ExecutionMode.ASSISTED:
         run_proposal(storage, session, executor, proposal, confirm=True)
@@ -354,7 +359,12 @@ def run_proposal(
     for command in proposal.commands:
         console.print(literal_panel(command, title="Executing", border_style="yellow"))
         result = executor.run(command)
-        status = "timeout" if result.timed_out else f"exit_{result.exit_code}"
+        if result.timed_out:
+            status = "timeout"
+        elif result.output_truncated:
+            status = "output_limit"
+        else:
+            status = f"exit_{result.exit_code}"
         storage.add_command_run(session.id, proposal.to_dict(), result.to_dict(), status)
         storage.add_event(session.id, "command_executed", {"command": command, "status": status})
         output = result.combined_output()
@@ -363,12 +373,15 @@ def run_proposal(
         else:
             console.print(f"[blue]{status}: no output[/blue]")
 
+        model_output = output[:MODEL_OUTPUT_CONTEXT_CHARS]
+        if len(output) > MODEL_OUTPUT_CONTEXT_CHARS:
+            model_output += "\n[output excerpt truncated before model context]"
         prompt = (
             "Command output for assessment context.\n\n"
             f"Command: `{command}`\n"
             f"Status: `{status}`\n\n"
             "```text\n"
-            f"{output}\n"
+            f"{model_output}\n"
             "```"
         )
         storage.add_message(session.id, "user", prompt)
@@ -385,6 +398,11 @@ def _prompt_mode(default: ExecutionMode) -> ExecutionMode:
 
 def _split_csv(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _report_slug(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9._-]+", "-", value.lower()).strip(".-_")
+    return slug or "session"
 
 
 if __name__ == "__main__":

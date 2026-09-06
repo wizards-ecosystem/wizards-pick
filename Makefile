@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 PYTHON ?= python3
 
-.PHONY: help install dev run check lint format typecheck test clean model-serve model-build tools
+.PHONY: help install dev run check lint format typecheck test build release-check clean model-serve model-build tools
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -33,6 +33,13 @@ typecheck: ## Type-check with mypy
 test: ## Run the test suite
 	pytest
 
+build: ## Build the source and wheel distributions
+	rm -rf build dist
+	$(PYTHON) -m build
+
+release-check: check build ## Run quality gates and validate distributions
+	$(PYTHON) -m twine check dist/*
+
 model-serve: ## Start the project-local Ollama server (loopback)
 	scripts/ollama-local.sh serve
 
@@ -42,4 +49,4 @@ model-build: ## Fetch the GGUF and build the local `deephat` model
 clean: ## Remove caches and build artifacts (keeps .wizards-pick data)
 	rm -rf build dist ./*.egg-info src/*.egg-info \
 		.pytest_cache .ruff_cache .mypy_cache
-	find . -type d -name __pycache__ -prune -exec rm -rf {} +
+	find src tests -type d -name __pycache__ -prune -exec rm -rf {} +

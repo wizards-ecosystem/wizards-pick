@@ -9,11 +9,11 @@
 # were not trained past 32K; without it, attention degrades past the window. See
 # the commented rope block at the bottom to experiment with 64K.
 # NOTE: ollama resolves a relative FROM against the Modelfile's own directory
-# (scripts/), so this path is written relative to scripts/, not the repo root.
+# (scripts/), so this path is written relative to that directory.
 FROM ../.wizards-pick/ollama/gguf/DeepHat-V1-7B.Q8_0.gguf
 
-# Context + full GPU offload: 7B Q8_0 (~8.1 GB) + 32K f16 KV (~1.8 GB) fits the
-# 16 GB GPU with headroom, so force every layer onto the GPU.
+# Request GPU offload. The 7B Q8_0 weights are about 8.1 GB and the 32K f16 KV
+# cache is about 1.8 GB in the tested 16 GB GPU setup.
 PARAMETER num_ctx 32768
 PARAMETER num_gpu 999
 # Cap generation so the model can't run away (it produced 200 KB once). Raised to
@@ -25,7 +25,7 @@ PARAMETER top_p 0.9
 PARAMETER min_p 0.02
 # repeat_penalty stays gentle: a coder model emits legitimately repeated tokens
 # (flags, JSON keys, paths), so an aggressive penalty hurts command fidelity.
-# Runaway output is bounded by num_predict, not by this.
+# num_predict provides the runaway-output bound.
 PARAMETER repeat_penalty 1.05
 
 # --- Optional: extend context past the native 32K (experimental) ---

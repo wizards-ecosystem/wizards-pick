@@ -1,7 +1,7 @@
 """Context-window budgeting for the local model.
 
 The model is built with a fixed context window (the Modelfile pins ``num_ctx``).
-A long engagement — large pasted scan dumps, ``/exec`` output, multi-step chains —
+A long engagement with large pasted scan dumps, ``/exec`` output, or multi-step chains
 can accumulate far more chat history than that window holds. Rather than blindly
 sending everything and letting the server silently drop the *oldest* system framing
 (or truncate mid-message), we budget the history here: system framing and the

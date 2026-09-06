@@ -7,21 +7,42 @@ name = "wizards-pick"
 description = "Local-first terminal chat assistant for authorized security testing."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Isaac Limb" }]
 dynamic = ["version"]
+keywords = ["authorized-security-testing", "ollama", "pentesting", "terminal"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Security",
+]
 dependencies = [
   "rich>=13.7.0",
 ]
 
 [project.urls]
+Homepage = "https://github.com/wizards-ecosystem/wizards-pick"
 Repository = "https://github.com/wizards-ecosystem/wizards-pick"
+Issues = "https://github.com/wizards-ecosystem/wizards-pick/issues"
+Security = "https://github.com/wizards-ecosystem/wizards-pick/security/policy"
 
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
   "ruff>=0.6",
   "mypy>=1.11",
+  "build>=1.2.2",
+  "twine>=6.1",
+]
+rope = [
+  "gguf>=0.17",
 ]
 
 [project.scripts]
@@ -32,6 +53,22 @@ path = "src/wizards_pick/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/wizards_pick"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src",
+  "/tests",
+  "/scripts",
+  "/docs",
+  "/LICENSE",
+  "/README.md",
+  "/CONTRIBUTING.md",
+  "/SECURITY.md",
+  "/RELEASING.md",
+  "/CHANGELOG.md",
+  "/Makefile",
+  "/pyproject.toml",
+]
 
 [tool.ruff]
 line-length = 100
