@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title"><title id="title">The Wizard's Pick mark</title>
-    <path d="M12 45h27c8 0 12-5 12-12" fill="none" stroke="#285E63" stroke-width="3" stroke-linecap="round"/>
-    <path d="M13 45v-8m6 8v-6m27-20c4 1 7 5 6 9" fill="none" stroke="#272522" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M16 17 49 49" fill="none" stroke="#272522" stroke-width="2.5" stroke-linecap="round"/>
-    <circle cx="13" cy="14" r="4" fill="none" stroke="#285E63" stroke-width="2.5"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="title"><title id="title">The Wizard's Pick mark</title><style>:root{--ink:#2D3433;--paper:#F1E9D5;--gold:#BAA477;--wood:#89715A;--metal:#A1AEAD;--wax:#AA5134;--clear:none;--accent:#326F72}</style>
+    <path d="M18 108c-5 3-11-3-8-8l38-41c3-4 7-4 10-1l7 7c3 3 3 7 0 10Z" fill="var(--accent)" stroke="var(--ink)" stroke-width="3"/>
+    <path d="m60 60 41-42c4-4 8-3 10 0l5 7-5 4-5-5-40 42Z" fill="var(--ink)"/>
+    <path d="m29 23 7-7 75 73-18 22-8-7 12-16Z" fill="var(--metal)" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round"/>
+    <path d="m19 100 34-36m-14-37 59 58" fill="none" stroke="var(--paper)" stroke-width="3" stroke-linecap="round"/>
+    <path d="M15 119c27-8 53 5 78-5-10 10-41 4-58 6Z" fill="var(--accent)"/></svg>

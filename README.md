@@ -1,7 +1,7 @@
 <h1 align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pick-logo-dark.svg">
-    <img src="docs/assets/pick-logo.svg" alt="The Wizard's Pick" width="420">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pick-logo-dark.png">
+    <img src="docs/assets/pick-logo.png" alt="The Wizard's Pick" width="420">
   </picture>
 </h1>
 
