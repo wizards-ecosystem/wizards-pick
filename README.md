@@ -1,18 +1,19 @@
-<div align="center">
-
-<img src="https://raw.githubusercontent.com/wizards-ecosystem/wizards-pick/main/docs/assets/pick-header.png" alt="The Wizard's Pick" width="100%">
-
-# The Wizard's Pick
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pick-logo-dark.svg">
+    <img src="docs/assets/pick-logo.svg" alt="The Wizard's Pick" width="420">
+  </picture>
+</h1>
 
 A terminal assistant for authorized security testing, with local inference by default.
 
 **Status: Working, public.** Version 0.2.0 is the current release.
 
 [![CI](https://github.com/wizards-ecosystem/wizards-pick/actions/workflows/ci.yml/badge.svg)](https://github.com/wizards-ecosystem/wizards-pick/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.11%2B-5d32a8)](https://github.com/wizards-ecosystem/wizards-pick/blob/main/pyproject.toml)
-[![License](https://img.shields.io/badge/license-MIT-342c3a)](https://github.com/wizards-ecosystem/wizards-pick/blob/main/LICENSE)
+[![Python](https://img.shields.io/badge/python-3.11%2B-285e63)](https://github.com/wizards-ecosystem/wizards-pick/blob/main/pyproject.toml)
+[![License](https://img.shields.io/badge/license-MIT-272522)](https://github.com/wizards-ecosystem/wizards-pick/blob/main/LICENSE)
 
-</div>
+
 
 > [!WARNING]
 > Pick proposes and can execute shell commands. Use it only on systems you own or have
