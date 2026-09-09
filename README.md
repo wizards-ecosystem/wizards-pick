@@ -1,4 +1,4 @@
-<h1>
+<h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pick-logo-dark.svg">
     <img src="docs/assets/pick-logo.svg" alt="The Wizard's Pick" width="420">
