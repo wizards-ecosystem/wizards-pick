@@ -2,6 +2,10 @@
 
 This file records user-visible changes. The project uses semantic versioning.
 
+## Unreleased
+
+- Preserve command-output tails, bound reply continuation, and version SQLite migrations.
+
 ## 0.2.0 - 2026-09-05
 
 - Added manual, assisted, and automated command execution modes.

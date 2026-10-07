@@ -14,6 +14,17 @@ from .private_io import ensure_private_directory, ensure_private_file, harden_ex
 
 DEFAULT_DB_PATH = DB_PATH
 
+# Append migrations; never edit a released entry. Version 0 databases retain all rows.
+MIGRATIONS: tuple[tuple[str, ...], ...] = (
+    (
+        "CREATE TABLE IF NOT EXISTS sessions (\n                    id TEXT PRIMARY KEY,\n                    name TEXT NOT NULL,\n                    mode TEXT NOT NULL,\n                    scope_json TEXT NOT NULL,\n                    authorization_hash TEXT NOT NULL,\n                    created_at TEXT NOT NULL,\n                    updated_at TEXT NOT NULL\n                )",
+        "CREATE TABLE IF NOT EXISTS messages (\n                    id INTEGER PRIMARY KEY AUTOINCREMENT,\n                    session_id TEXT NOT NULL,\n                    role TEXT NOT NULL,\n                    content TEXT NOT NULL,\n                    created_at TEXT NOT NULL,\n                    FOREIGN KEY(session_id) REFERENCES sessions(id)\n                )",
+        "CREATE TABLE IF NOT EXISTS events (\n                    id INTEGER PRIMARY KEY AUTOINCREMENT,\n                    session_id TEXT NOT NULL,\n                    kind TEXT NOT NULL,\n                    data_json TEXT NOT NULL,\n                    created_at TEXT NOT NULL,\n                    FOREIGN KEY(session_id) REFERENCES sessions(id)\n                )",
+        "CREATE TABLE IF NOT EXISTS command_runs (\n                    id INTEGER PRIMARY KEY AUTOINCREMENT,\n                    session_id TEXT NOT NULL,\n                    proposal_json TEXT NOT NULL,\n                    result_json TEXT NOT NULL,\n                    status TEXT NOT NULL,\n                    created_at TEXT NOT NULL,\n                    FOREIGN KEY(session_id) REFERENCES sessions(id)\n                )",
+        "CREATE TABLE IF NOT EXISTS findings (\n                    id INTEGER PRIMARY KEY AUTOINCREMENT,\n                    session_id TEXT NOT NULL,\n                    data_json TEXT NOT NULL,\n                    created_at TEXT NOT NULL,\n                    FOREIGN KEY(session_id) REFERENCES sessions(id)\n                )",
+    ),
+)
+
 
 class Storage:
     def __init__(self, path: Path | str = DEFAULT_DB_PATH):
@@ -41,57 +52,28 @@ class Storage:
 
     def _init_db(self) -> None:
         with self.connect() as conn:
-            conn.executescript(
-                """
-                PRAGMA journal_mode=WAL;
-
-                CREATE TABLE IF NOT EXISTS sessions (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    mode TEXT NOT NULL,
-                    scope_json TEXT NOT NULL,
-                    authorization_hash TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS messages (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    role TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(session_id) REFERENCES sessions(id)
-                );
-
-                CREATE TABLE IF NOT EXISTS events (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    kind TEXT NOT NULL,
-                    data_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(session_id) REFERENCES sessions(id)
-                );
-
-                CREATE TABLE IF NOT EXISTS command_runs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    proposal_json TEXT NOT NULL,
-                    result_json TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(session_id) REFERENCES sessions(id)
-                );
-
-                CREATE TABLE IF NOT EXISTS findings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    data_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(session_id) REFERENCES sessions(id)
-                );
-                """
-            )
+            conn.execute("PRAGMA journal_mode=WAL")
+            version = conn.execute("PRAGMA user_version").fetchone()[0]
+            if version > len(MIGRATIONS):
+                raise RuntimeError("Database schema is newer than this Pick build")
+            if version == len(MIGRATIONS):
+                return
+            while True:
+                conn.execute("BEGIN IMMEDIATE")
+                try:
+                    version = conn.execute("PRAGMA user_version").fetchone()[0]
+                    if version > len(MIGRATIONS):
+                        raise RuntimeError("Database schema is newer than this Pick build")
+                    if version == len(MIGRATIONS):
+                        conn.commit()
+                        return
+                    for statement in MIGRATIONS[version]:
+                        conn.execute(statement)
+                    conn.execute(f"PRAGMA user_version = {version + 1}")
+                    conn.commit()
+                except BaseException:
+                    conn.rollback()
+                    raise
 
     def create_session(
         self,

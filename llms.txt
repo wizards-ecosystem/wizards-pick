@@ -1,0 +1,10 @@
+# The Wizard's Pick
+
+> A local terminal assistant for authorized security testing. Commands run through the host shell under the operator's authorization.
+
+## Documentation
+
+- [README](https://github.com/wizards-ecosystem/wizards-pick/blob/main/README.md)
+- [Release guide](https://github.com/wizards-ecosystem/wizards-pick/blob/main/RELEASING.md)
+- [Security policy](https://github.com/wizards-ecosystem/wizards-pick/blob/main/SECURITY.md)
+- [Storage and output decisions](https://github.com/wizards-ecosystem/wizards-pick/blob/main/docs/decisions/2026-10-07-maintenance.md)

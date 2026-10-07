@@ -185,3 +185,5 @@ and [security policy](https://github.com/wizards-ecosystem/wizards-pick/security
 <div align="center">
 <sub>Maintained by <a href="https://isaaclimb.com">Isaac Limb</a>. Read the <a href="https://isaaclimb.com/projects/penetration-llm.html">project writeup</a>.</sub>
 </div>
+
+Implementation and declined research proposals are recorded in [the maintenance decision](docs/decisions/2026-10-07-maintenance.md).

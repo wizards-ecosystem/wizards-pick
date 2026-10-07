@@ -14,6 +14,7 @@ except ImportError:  # pragma: no cover - exercised only without optional depend
     raise
 
 from . import __version__
+from .excerpts import excerpt
 from .executor import CommandExecutor
 from .llm import (
     ROLE_PROMPTS,
@@ -369,13 +370,11 @@ def run_proposal(
         storage.add_event(session.id, "command_executed", {"command": command, "status": status})
         output = result.combined_output()
         if output:
-            console.print(literal_panel(output[:6000], title=status, border_style="blue"))
+            console.print(literal_panel(excerpt(output, 6000), title=status, border_style="blue"))
         else:
             console.print(f"[blue]{status}: no output[/blue]")
 
-        model_output = output[:MODEL_OUTPUT_CONTEXT_CHARS]
-        if len(output) > MODEL_OUTPUT_CONTEXT_CHARS:
-            model_output += "\n[output excerpt truncated before model context]"
+        model_output = excerpt(output, MODEL_OUTPUT_CONTEXT_CHARS)
         prompt = (
             "Command output for assessment context.\n\n"
             f"Command: `{command}`\n"

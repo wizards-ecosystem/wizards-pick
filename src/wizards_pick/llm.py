@@ -69,6 +69,7 @@ class LLMClient:
         model: str = LOCAL_LLM_MODEL,
         opener: urllib.request.OpenerDirector | None = None,
     ):
+        self._finish_reason: str | None = None
         self.timeout = timeout
         self.max_tokens = max_tokens
         self.url = url
@@ -78,6 +79,33 @@ class LLMClient:
         )
 
     def chat(self, messages: list[dict[str, str]]) -> Iterable[str]:
+        combined = ""
+        current = messages
+        for _ in range(3):
+            self._finish_reason = None
+            for chunk in self._chat_once(current):
+                combined += chunk
+                yield chunk
+            if self._finish_reason not in {"length", "max_tokens"}:
+                if _ > 0 and "```json" in combined.lower() and not extract_json_payloads(combined):
+                    raise LLMError(
+                        "Model returned incomplete structured output; no proposal accepted"
+                    )
+                return
+            current = budget_messages(
+                messages[:2],
+                messages[2:],
+                [
+                    {"role": "assistant", "content": combined},
+                    {
+                        "role": "user",
+                        "content": "Continue exactly where you stopped. Output only the continuation, without repetition.",
+                    },
+                ],
+            )
+        raise LLMError("Model reply still truncated after three requests; no proposal accepted")
+
+    def _chat_once(self, messages: list[dict[str, str]]) -> Iterable[str]:
         # Generation defaults (temperature, top_p, num_predict) live in the
         # Modelfile; max_tokens is a hard client-side cap against runaway output,
         # kept in lock-step with the reply budget the context window reserves.
@@ -121,6 +149,7 @@ class LLMClient:
             choices = data.get("choices") or []
             if not choices:
                 continue
+            self._finish_reason = choices[0].get("finish_reason") or self._finish_reason
             delta = choices[0].get("delta") or {}
             content = delta.get("content")
             if content:

@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 
+from .excerpts import excerpt
 from .models import Finding, Session
 from .private_io import open_private_text
 from .storage import Storage
@@ -90,7 +91,9 @@ def export_markdown(
                 if part.strip()
             ).strip()
             if output:
-                lines.extend(["Output excerpt:", "", *_code_block(output[:4000], "text"), ""])
+                lines.extend(
+                    ["Output excerpt:", "", *_code_block(excerpt(output, 4000), "text"), ""]
+                )
     else:
         lines.append("No commands have been executed through the assistant.")
         lines.append("")
