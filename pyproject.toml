@@ -30,6 +30,8 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/wizards-ecosystem/wizards-pick"
 Repository = "https://github.com/wizards-ecosystem/wizards-pick"
+Releases = "https://github.com/wizards-ecosystem/wizards-pick/releases"
+Changelog = "https://github.com/wizards-ecosystem/wizards-pick/blob/main/CHANGELOG.md"
 Issues = "https://github.com/wizards-ecosystem/wizards-pick/issues"
 Security = "https://github.com/wizards-ecosystem/wizards-pick/security/policy"
 
